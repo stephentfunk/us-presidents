@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🇺🇸 Presidents in Order</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Georgia', serif;
+      background: linear-gradient(160deg, #0d1b2a 0%, #1b2f4b 50%, #0d1b2a 100%);
+      color: #e0e0e0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      background: rgba(0,0,0,0.35);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 10px 20px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 1.5em; color: #f0c040; letter-spacing: 1px; }
+    header p  { font-size: 0.75em; color: #888; margin-top: 3px; }
+
+    /* ── Main layout ── */
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      padding: 10px;
+      gap: 10px;
+    }
+
+    /* ── Left panel ── */
+    .left-panel {
+      width: 180px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .panel-title {
+      padding: 7px 10px;
+      font-size: 0.75em;
+      font-weight: bold;
+      color: #f0c040;
+      text-align: center;
+      background: rgba(0,0,0,0.2);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0;
+      letter-spacing: 0.5px;
+    }
+    .presidents-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .presidents-list::-webkit-scrollbar { width: 3px; }
+    .presidents-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+    .pres-card {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 6px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+      cursor: grab;
+      border: 1.5px solid transparent;
+      transition: border-color 0.12s, background 0.12s;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .pres-card:hover { border-color: #f0c040; background: rgba(240,192,64,0.08); }
+    .pres-card.dragging-source { opacity: 0.35; }
+
+    .pres-img {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      object-position: center 10%;
+      flex-shrink: 0;
+      background: #333;
+      display: block;
+    }
+    .pres-initials {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #8e44ad, #2980b9);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.68em; font-weight: bold; color: white;
+      flex-shrink: 0;
+    }
+    .pres-info { flex: 1; min-width: 0; }
+    .pres-name { font-size: 0.7em; line-height: 1.25; }
+    .multi-badge { font-size: 0.6em; color: #f0c040; margin-top: 1px; }
+
+    /* ── Sort dropdown ── */
+    .sort-wrap {
+      padding: 5px 5px 2px;
+      flex-shrink: 0;
+    }
+    .sort-select {
+      width: 100%;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 5px;
+      color: #ccc;
+      font-size: 0.7em;
+      font-family: inherit;
+      padding: 5px 7px;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .sort-select:focus { border-color: rgba(240,192,64,0.5); }
+    .sort-select option { background: #1b2f4b; }
+
+    /* ── Assigned / partial visual states ── */
+    /* Fully placed (all needed slots filled): ghost out */
+    .pres-card.assigned {
+      opacity: 0.35;
+      filter: grayscale(0.75);
+    }
+    .pres-card.assigned:hover {
+      border-color: rgba(255,255,255,0.1) !important;
+      background: rgba(255,255,255,0.05) !important;
+    }
+    /* Partially placed (multi-term, 1 of 2 used): subtle gold tint */
+    .pres-card.partial {
+      border-color: rgba(240,192,64,0.35);
+      background: rgba(240,192,64,0.04);
+    }
+
+    /* ── Right panel ── */
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .slots-grid {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
+      gap: 6px;
+      align-content: start;
+    }
+    .slots-grid::-webkit-scrollbar { width: 3px; }
+    .slots-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+    .slot {
+      border: 2px dashed rgba(255,255,255,0.13);
+      border-radius: 8px;
+      min-height: 90px;
+      padding: 5px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: border-color 0.12s, background 0.12s;
+      cursor: default;
+    }
+    .slot.drop-target { border-color: #f0c040; background: rgba(240,192,64,0.07); }
+    .slot.correct    { border-color: #2ecc71 !important; background: rgba(46,204,113,0.1) !important; }
+    .slot.incorrect  { border-color: #e74c3c !important; background: rgba(231,76,60,0.1) !important; }
+
+    .slot-num {
+      position: absolute;
+      top: 3px; left: 5px;
+      font-size: 0.6em; color: #555; font-weight: bold;
+    }
+    .slot-empty { color: #3a4a5a; font-size: 0.68em; }
+
+    .slot-filled {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 3px;
+      width: 100%; cursor: grab;
+      touch-action: none; user-select: none; -webkit-user-select: none;
+    }
+    .slot-img {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      object-fit: cover;
+      object-position: center 10%;
+      display: block;
+    }
+    .slot-initials {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #8e44ad, #2980b9);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72em; font-weight: bold; color: white;
+    }
+    .slot-filled-name {
+      font-size: 0.6em; text-align: center; color: #bbb;
+      line-height: 1.2; max-width: 100%;
+    }
+
+    .slot-remove {
+      position: absolute; top: 2px; right: 2px;
+      width: 15px; height: 15px;
+      background: rgba(231,76,60,0.8);
+      border: none; border-radius: 50%;
+      color: white; font-size: 8px;
+      cursor: pointer; display: none;
+      align-items: center; justify-content: center;
+      line-height: 1; z-index: 10;
+    }
+    .slot:hover .slot-remove { display: flex; }
+
+    /* ── Footer ── */
+    footer {
+      flex-shrink: 0;
+      padding: 8px 16px;
+      background: rgba(0,0,0,0.25);
+      border-top: 1px solid rgba(255,255,255,0.07);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      justify-content: center;
+    }
+    .progress-wrap { flex: 1; max-width: 280px; }
+    .progress-label { font-size: 0.72em; color: #888; margin-bottom: 3px; }
+    .progress-bar { height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #f0c040, #e94560); border-radius: 3px; transition: width 0.3s; }
+
+    .btn {
+      padding: 8px 20px;
+      border: none; border-radius: 6px;
+      font-size: 0.88em; font-family: inherit;
+      cursor: pointer;
+      transition: transform 0.08s, opacity 0.1s;
+      font-weight: bold; letter-spacing: 0.3px;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn-reset { background: rgba(255,255,255,0.09); color: #ccc; border: 1px solid rgba(255,255,255,0.15); }
+    .btn-reset:hover { background: rgba(255,255,255,0.14); }
+    .btn-check { background: linear-gradient(135deg, #e94560, #c0392b); color: white; }
+    .btn-check:hover { opacity: 0.88; }
+
+    /* ── Drag Ghost ── */
+    #ghost {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.9;
+      transform: scale(0.9) rotate(2deg);
+      display: none;
+      background: rgba(10, 25, 50, 0.96);
+      border: 2px solid #f0c040;
+      border-radius: 8px;
+      padding: 5px 9px;
+      align-items: center;
+      gap: 8px;
+      min-width: 110px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+    }
+    #ghost.visible { display: flex; }
+    #ghost-name { font-size: 0.7em; color: #eee; }
+
+    /* ── Celebration ── */
+    /* Floating panel — does NOT cover the board */
+    #celebration {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(10, 22, 44, 0.97);
+      border: 2px solid #f0c040;
+      border-radius: 14px;
+      box-shadow: 0 12px 60px rgba(0,0,0,0.85);
+      z-index: 1000;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 10px;
+      padding: 26px 36px 22px;
+      min-width: 300px;
+      max-width: 400px;
+    }
+    #celebration.show { display: flex; }
+    .celeb-flag  { font-size: 3em;  animation: wave   1.5s ease-in-out infinite alternate; }
+    .celeb-stars { font-size: 1.6em; animation: pulse  0.8s ease-in-out infinite alternate; }
+    .celeb-title {
+      font-size: 2em; color: #f0c040;
+      text-shadow: 0 0 24px rgba(240,192,64,0.7);
+      animation: bounce 1s ease-in-out infinite alternate;
+    }
+    .celeb-sub { color: #ccc; font-size: 0.85em; line-height: 1.5; }
+    .celeb-hint { color: #666; font-size: 0.72em; font-style: italic; margin-top: 2px; }
+    .celeb-btns { display: flex; gap: 10px; margin-top: 6px; }
+    @keyframes wave  { from { transform: rotate(-12deg); } to { transform: rotate(12deg); } }
+    @keyframes pulse { from { transform: scale(1); }       to { transform: scale(1.1); } }
+    @keyframes bounce{ from { transform: translateY(0); }  to { transform: translateY(-8px); } }
+
+    /* ── Confetti ── */
+    #confetti-canvas {
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 999;
+      display: none;
+    }
+    #confetti-canvas.show { display: block; }
+
+    /* ── Loading toast ── */
+    #loading-toast {
+      position: fixed; bottom: 60px; right: 16px;
+      background: rgba(0,0,0,0.75);
+      color: #aaa; padding: 7px 13px;
+      border-radius: 6px; font-size: 0.75em;
+      display: none; align-items: center; gap: 7px;
+    }
+    #loading-toast.show { display: flex; }
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top-color: #f0c040;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🇺🇸 Presidents in Order</h1>
+  <p>Drag presidents from the left into the correct numbered slot • Grover Cleveland & Donald Trump served non-consecutive terms — place them twice</p>
+</header>
+
+<div class="main">
+  <div class="left-panel">
+    <div class="panel-title">PRESIDENTS</div>
+    <div class="sort-wrap">
+      <select class="sort-select" id="sortSelect" onchange="onSortChange()">
+        <option value="shuffle">— Shuffled —</option>
+        <option value="first">First Name A–Z</option>
+        <option value="last">Last Name A–Z</option>
+      </select>
+    </div>
+    <div class="presidents-list" id="presidentsList"></div>
+  </div>
+  <div class="right-panel">
+    <div class="panel-title">ORDER OF SERVICE — 1st through 47th</div>
+    <div class="slots-grid" id="slotsGrid"></div>
+  </div>
+</div>
+
+<footer>
+  <div class="progress-wrap">
+    <div class="progress-label" id="progressLabel">0 / 47 slots filled</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+  <button class="btn btn-reset" onclick="resetGame()">Reset</button>
+  <button class="btn btn-check" onclick="checkAnswers()">Check Answers</button>
+</footer>
+
+<!-- Drag ghost -->
+<div id="ghost">
+  <div id="ghost-img-wrap"></div>
+  <div id="ghost-name"></div>
+</div>
+
+<!-- Celebration -->
+<div id="celebration">
+  <div class="celeb-flag">🇺🇸</div>
+  <div class="celeb-stars">⭐ ⭐ ⭐</div>
+  <div class="celeb-title">Congratulations!</div>
+  <div class="celeb-sub">You correctly placed all 47 Presidents of the United States in order!</div>
+  <div class="celeb-hint">Close this panel to study the completed board.</div>
+  <div class="celeb-btns">
+    <button class="btn btn-reset" onclick="closeCelebration()">Study Board</button>
+    <button class="btn btn-check" onclick="playAgain()">Play Again</button>
+  </div>
+</div>
+
+<canvas id="confetti-canvas"></canvas>
+
+<div id="loading-toast">
+  <div class="spinner"></div>
+  <span>Loading portraits…</span>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────
+
+const PRESIDENTS = [
+  { id: 'washington',  name: 'George Washington',     wiki: 'George Washington' },
+  { id: 'j_adams',     name: 'John Adams',             wiki: 'John Adams' },
+  { id: 'jefferson',   name: 'Thomas Jefferson',       wiki: 'Thomas Jefferson' },
+  { id: 'madison',     name: 'James Madison',          wiki: 'James Madison' },
+  { id: 'monroe',      name: 'James Monroe',           wiki: 'James Monroe' },
+  { id: 'jq_adams',    name: 'John Quincy Adams',      wiki: 'John Quincy Adams' },
+  { id: 'jackson',     name: 'Andrew Jackson',         wiki: 'Andrew Jackson' },
+  { id: 'vanburen',    name: 'Martin Van Buren',       wiki: 'Martin Van Buren' },
+  { id: 'wh_harrison', name: 'Wm. Henry Harrison',    wiki: 'William Henry Harrison' },
+  { id: 'tyler',       name: 'John Tyler',             wiki: 'John Tyler' },
+  { id: 'polk',        name: 'James K. Polk',          wiki: 'James K. Polk' },
+  { id: 'taylor',      name: 'Zachary Taylor',         wiki: 'Zachary Taylor' },
+  { id: 'fillmore',    name: 'Millard Fillmore',       wiki: 'Millard Fillmore' },
+  { id: 'pierce',      name: 'Franklin Pierce',        wiki: 'Franklin Pierce' },
+  { id: 'buchanan',    name: 'James Buchanan',         wiki: 'James Buchanan' },
+  { id: 'lincoln',     name: 'Abraham Lincoln',        wiki: 'Abraham Lincoln' },
+  { id: 'a_johnson',   name: 'Andrew Johnson',         wiki: 'Andrew Johnson' },
+  { id: 'grant',       name: 'Ulysses S. Grant',       wiki: 'Ulysses S. Grant' },
+  { id: 'hayes',       name: 'Rutherford B. Hayes',    wiki: 'Rutherford B. Hayes' },
+  { id: 'garfield',    name: 'James A. Garfield',      wiki: 'James A. Garfield' },
+  { id: 'arthur',      name: 'Chester A. Arthur',      wiki: 'Chester A. Arthur' },
+  { id: 'cleveland',   name: 'Grover Cleveland',       wiki: 'Grover Cleveland',       multiTerm: true },
+  { id: 'b_harrison',  name: 'Benjamin Harrison',      wiki: 'Benjamin Harrison' },
+  { id: 'mckinley',    name: 'William McKinley',       wiki: 'William McKinley' },
+  { id: 't_roosevelt', name: 'Theodore Roosevelt',     wiki: 'Theodore Roosevelt' },
+  { id: 'taft',        name: 'William H. Taft',        wiki: 'William Howard Taft' },
+  { id: 'wilson',      name: 'Woodrow Wilson',         wiki: 'Woodrow Wilson' },
+  { id: 'harding',     name: 'Warren G. Harding',      wiki: 'Warren G. Harding' },
+  { id: 'coolidge',    name: 'Calvin Coolidge',        wiki: 'Calvin Coolidge' },
+  { id: 'hoover',      name: 'Herbert Hoover',         wiki: 'Herbert Hoover' },
+  { id: 'fdr',         name: 'Franklin D. Roosevelt',  wiki: 'Franklin D. Roosevelt' },
+  { id: 'truman',      name: 'Harry S. Truman',        wiki: 'Harry S. Truman' },
+  { id: 'eisenhower',  name: 'Dwight D. Eisenhower',   wiki: 'Dwight D. Eisenhower' },
+  { id: 'kennedy',     name: 'John F. Kennedy',        wiki: 'John F. Kennedy' },
+  { id: 'lbj',         name: 'Lyndon B. Johnson',      wiki: 'Lyndon B. Johnson' },
+  { id: 'nixon',       name: 'Richard Nixon',          wiki: 'Richard Nixon' },
+  { id: 'ford',        name: 'Gerald Ford',            wiki: 'Gerald Ford' },
+  { id: 'carter',      name: 'Jimmy Carter',           wiki: 'Jimmy Carter' },
+  { id: 'reagan',      name: 'Ronald Reagan',          wiki: 'Ronald Reagan' },
+  { id: 'ghw_bush',    name: 'George H.W. Bush',       wiki: 'George H. W. Bush' },
+  { id: 'clinton',     name: 'Bill Clinton',           wiki: 'Bill Clinton' },
+  { id: 'gw_bush',     name: 'George W. Bush',         wiki: 'George W. Bush' },
+  { id: 'obama',       name: 'Barack Obama',           wiki: 'Barack Obama' },
+  { id: 'trump',       name: 'Donald Trump',           wiki: 'Donald Trump',           multiTerm: true },
+  { id: 'biden',       name: 'Joe Biden',              wiki: 'Joe Biden' },
+];
+
+// Correct answer for each of the 47 slots (0-indexed)
+const CORRECT = [
+  'washington','j_adams','jefferson','madison','monroe',
+  'jq_adams','jackson','vanburen','wh_harrison','tyler',
+  'polk','taylor','fillmore','pierce','buchanan',
+  'lincoln','a_johnson','grant','hayes','garfield',
+  'arthur','cleveland','b_harrison','cleveland','mckinley',
+  't_roosevelt','taft','wilson','harding','coolidge',
+  'hoover','fdr','truman','eisenhower','kennedy',
+  'lbj','nixon','ford','carter','reagan',
+  'ghw_bush','clinton','gw_bush','obama','trump',
+  'biden','trump'
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+
+const images = {};           // presId → image URL
+let slots    = new Array(47).fill(null);
+let shuffled = [];           // base random order (used when sortOrder === 'shuffle')
+let sortOrder = 'shuffle';  // 'shuffle' | 'first' | 'last'
+let drag = null;             // { presId, fromSlot }
+
+const ghost       = document.getElementById('ghost');
+const ghostImgWrap= document.getElementById('ghost-img-wrap');
+const ghostNameEl = document.getElementById('ghost-name');
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+
+function getPres(id) { return PRESIDENTS.find(p => p.id === id); }
+
+function initials(p) {
+  const parts = p.name.split(' ').filter(Boolean);
+  return ((parts[0]?.[0]||'') + (parts[parts.length-1]?.[0]||'')).toUpperCase();
+}
+
+// Last word of a president's display name (used for last-name sort)
+function getLastName(name) {
+  const parts = name.trim().split(/\s+/);
+  return parts[parts.length - 1];
+}
+
+// How many times presId must appear across all 47 slots (1 for most, 2 for Cleveland/Trump)
+function neededCount(presId) {
+  return CORRECT.filter(id => id === presId).length;
+}
+
+// How many times presId is currently placed in slots
+function placedCount(presId) {
+  return slots.filter(id => id === presId).length;
+}
+
+// Returns the ordered president array based on current sortOrder
+function getDisplayOrder() {
+  if (sortOrder === 'first') {
+    return [...PRESIDENTS].sort((a, b) => a.name.localeCompare(b.name));
+  }
+  if (sortOrder === 'last') {
+    return [...PRESIDENTS].sort((a, b) => getLastName(a.name).localeCompare(getLastName(b.name)));
+  }
+  return shuffled; // 'shuffle': use the randomised order from init/reset
+}
+
+// Apply .assigned / .partial classes to existing cards without re-rendering the list
+function updateAssignedStates() {
+  document.querySelectorAll('#presidentsList .pres-card').forEach(card => {
+    const presId = card.dataset.presId;
+    const placed = placedCount(presId);
+    const needed = neededCount(presId);
+    card.classList.toggle('assigned', placed >= needed);
+    card.classList.toggle('partial',  placed > 0 && placed < needed);
+  });
+}
+
+// Called by the sort dropdown
+function onSortChange() {
+  sortOrder = document.getElementById('sortSelect').value;
+  renderPresidentsList();
+  saveState(); // persist the new sort preference
+}
+
+function makeAvatar(presId, size, isSlot) {
+  const p = getPres(presId);
+  if (images[presId]) {
+    const img = document.createElement('img');
+    img.src      = images[presId];
+    img.className = isSlot ? 'slot-img' : 'pres-img';
+    img.style.cssText = `width:${size}px;height:${size}px;`;
+    img.alt       = p ? p.name : '';
+    img.draggable = false;
+    return img;
+  }
+  const div = document.createElement('div');
+  div.className = isSlot ? 'slot-initials' : 'pres-initials';
+  div.style.cssText = `width:${size}px;height:${size}px;`;
+  if (p) div.textContent = initials(p);
+  return div;
+}
+
+// ─────────────────────────────────────────────
+// IMAGE LOADING
+// ─────────────────────────────────────────────
+
+async function loadImages() {
+  const toast = document.getElementById('loading-toast');
+  toast.classList.add('show');
+
+  const BATCH = 20;
+  for (let i = 0; i < PRESIDENTS.length; i += BATCH) {
+    const batch = PRESIDENTS.slice(i, i + BATCH);
+    const titles = batch.map(p => p.wiki).join('|');
+    try {
+      const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(titles)}&prop=pageimages&format=json&pithumbsize=150&origin=*`;
+      const res  = await fetch(url);
+      const data = await res.json();
+      if (data.query?.pages) {
+        for (const page of Object.values(data.query.pages)) {
+          if (page.thumbnail?.source) {
+            const pres = PRESIDENTS.find(p => p.wiki === page.title);
+            if (pres) images[pres.id] = page.thumbnail.source;
+          }
+        }
+      }
+    } catch (e) { /* silently fall back to initials */ }
+  }
+
+  toast.classList.remove('show');
+  renderPresidentsList();
+  renderSlots();
+}
+
+// ─────────────────────────────────────────────
+// RENDER — Left Panel
+// ─────────────────────────────────────────────
+
+function renderPresidentsList() {
+  const list = document.getElementById('presidentsList');
+  list.innerHTML = '';
+  for (const p of getDisplayOrder()) {
+    const card = document.createElement('div');
+    card.className    = 'pres-card';
+    card.dataset.presId = p.id;
+
+    card.appendChild(makeAvatar(p.id, 36, false));
+
+    const info = document.createElement('div');
+    info.className = 'pres-info';
+    const name = document.createElement('div');
+    name.className = 'pres-name';
+    name.textContent = p.name;
+    info.appendChild(name);
+    if (p.multiTerm) {
+      const badge = document.createElement('div');
+      badge.className = 'multi-badge';
+      badge.textContent = '★ non-consecutive terms';
+      info.appendChild(badge);
+    }
+    card.appendChild(info);
+
+    card.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      startDrag(e, p.id, null, card);
+    });
+
+    list.appendChild(card);
+  }
+  // Reflect current slot state on freshly-rendered cards
+  updateAssignedStates();
+}
+
+// ─────────────────────────────────────────────
+// RENDER — Slots Grid
+// ─────────────────────────────────────────────
+
+function renderSlots() {
+  const grid = document.getElementById('slotsGrid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 47; i++) grid.appendChild(buildSlot(i));
+}
+
+function buildSlot(i) {
+  const slot = document.createElement('div');
+  slot.className = 'slot';
+  slot.dataset.slotIndex = i;
+
+  const numEl = document.createElement('div');
+  numEl.className = 'slot-num';
+  numEl.textContent = `#${i + 1}`;
+  slot.appendChild(numEl);
+
+  if (slots[i]) {
+    const presId = slots[i];
+    const p      = getPres(presId);
+
+    const filled = document.createElement('div');
+    filled.className = 'slot-filled';
+    filled.appendChild(makeAvatar(presId, 42, true));
+    const nameEl = document.createElement('div');
+    nameEl.className  = 'slot-filled-name';
+    nameEl.textContent = p ? p.name : presId;
+    filled.appendChild(nameEl);
+    slot.appendChild(filled);
+
+    // Remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'slot-remove';
+    removeBtn.innerHTML = '✕';
+    removeBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      slots[i] = null;
+      refreshSlot(i);
+      updateProgress();
+      updateAssignedStates();
+      saveState(); // persist removal
+    });
+    slot.appendChild(removeBtn);
+
+    // Drag from filled slot
+    filled.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      startDrag(e, presId, i, filled);
+    });
+  } else {
+    const empty = document.createElement('div');
+    empty.className  = 'slot-empty';
+    empty.textContent = `— ${i + 1} —`;
+    slot.appendChild(empty);
+  }
+
+  return slot;
+}
+
+function refreshSlot(i) {
+  const grid = document.getElementById('slotsGrid');
+  const old  = grid.querySelector(`[data-slot-index="${i}"]`);
+  if (!old) return;
+  const neo  = buildSlot(i);
+  if (old.classList.contains('correct'))   neo.classList.add('correct');
+  if (old.classList.contains('incorrect')) neo.classList.add('incorrect');
+  grid.replaceChild(neo, old);
+}
+
+// ─────────────────────────────────────────────
+// DRAG & DROP — Pointer Events
+// ─────────────────────────────────────────────
+
+function startDrag(e, presId, fromSlot, sourceEl) {
+  e.stopPropagation();
+  const p = getPres(presId);
+
+  // Build ghost
+  ghostImgWrap.innerHTML = '';
+  const av = makeAvatar(presId, 32, false);
+  ghostImgWrap.appendChild(av);
+  ghostNameEl.textContent = p ? p.name : presId;
+  ghost.classList.add('visible');
+  moveGhost(e.clientX, e.clientY);
+
+  drag = { presId, fromSlot, sourceEl };
+  sourceEl.classList.add('dragging-source');
+
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup',   onUp);
+  document.addEventListener('pointercancel', onCancel);
+}
+
+function moveGhost(x, y) {
+  ghost.style.left = (x + 14) + 'px';
+  ghost.style.top  = (y - 18) + 'px';
+}
+
+function targetSlotAt(x, y) {
+  // ghost has pointer-events:none so elementFromPoint looks through it
+  const el = document.elementFromPoint(x, y);
+  return el ? el.closest('.slot') : null;
+}
+
+function onMove(e) {
+  moveGhost(e.clientX, e.clientY);
+  document.querySelectorAll('.slot.drop-target').forEach(s => s.classList.remove('drop-target'));
+  const slotEl = targetSlotAt(e.clientX, e.clientY);
+  if (slotEl) slotEl.classList.add('drop-target');
+}
+
+function onUp(e) {
+  ghost.classList.remove('visible');
+  document.querySelectorAll('.slot.drop-target').forEach(s => s.classList.remove('drop-target'));
+
+  const slotEl    = targetSlotAt(e.clientX, e.clientY);
+  const targetIdx = slotEl ? parseInt(slotEl.dataset.slotIndex) : -1;
+
+  if (targetIdx >= 0 && drag) {
+    const existing = slots[targetIdx];
+    if (drag.fromSlot !== null && drag.fromSlot !== undefined) {
+      // Slot → Slot: swap
+      slots[targetIdx]      = drag.presId;
+      slots[drag.fromSlot]  = existing || null;
+    } else {
+      // Panel → Slot: clone (original stays)
+      slots[targetIdx] = drag.presId;
+    }
+    renderSlots();
+    updateProgress();
+    clearChecks();
+    updateAssignedStates();
+    saveState(); // persist the placement
+  }
+
+  cleanup();
+}
+
+function onCancel() {
+  ghost.classList.remove('visible');
+  document.querySelectorAll('.slot.drop-target').forEach(s => s.classList.remove('drop-target'));
+  cleanup();
+}
+
+function cleanup() {
+  if (drag?.sourceEl) drag.sourceEl.classList.remove('dragging-source');
+  drag = null;
+  document.removeEventListener('pointermove', onMove);
+  document.removeEventListener('pointerup',   onUp);
+  document.removeEventListener('pointercancel', onCancel);
+}
+
+// ─────────────────────────────────────────────
+// GAME LOGIC
+// ─────────────────────────────────────────────
+
+function clearChecks() {
+  document.querySelectorAll('.slot').forEach(s => s.classList.remove('correct', 'incorrect'));
+}
+
+function updateProgress() {
+  const filled = slots.filter(Boolean).length;
+  document.getElementById('progressFill').style.width = (filled / 47 * 100) + '%';
+  document.getElementById('progressLabel').textContent = `${filled} / 47 slots filled`;
+}
+
+function checkAnswers() {
+  let correct = 0;
+  document.querySelectorAll('.slot').forEach((el, i) => {
+    el.classList.remove('correct', 'incorrect');
+    if (slots[i]) {
+      if (slots[i] === CORRECT[i]) { el.classList.add('correct');   correct++; }
+      else                          { el.classList.add('incorrect'); }
+    }
+  });
+  document.getElementById('progressLabel').textContent =
+    correct === 47 ? '47 / 47 — Perfect!' : `${correct} / 47 correct`;
+  if (correct === 47) setTimeout(startCelebration, 350);
+}
+
+function resetGame() {
+  clearState(); // wipe saved cookie — player is explicitly starting over
+  slots    = new Array(47).fill(null);
+  shuffled = [...PRESIDENTS].sort(() => Math.random() - 0.5);
+  clearChecks();
+  renderPresidentsList();
+  renderSlots();
+  updateProgress();
+}
+
+// ─────────────────────────────────────────────
+// CELEBRATION & CONFETTI
+// ─────────────────────────────────────────────
+
+let animId = null;
+
+function startCelebration() {
+  document.getElementById('celebration').classList.add('show');
+  document.getElementById('confetti-canvas').classList.add('show');
+  runConfetti();
+}
+
+// Dismiss the celebration panel and stop confetti — board is preserved.
+function closeCelebration() {
+  document.getElementById('celebration').classList.remove('show');
+  document.getElementById('confetti-canvas').classList.remove('show');
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  const canvas = document.getElementById('confetti-canvas');
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+}
+
+// Explicit "Play Again" — dismiss celebration then reset.
+function playAgain() {
+  closeCelebration();
+  resetGame();
+}
+
+function runConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx    = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const colors = ['#f0c040','#e94560','#2ecc71','#3498db','#9b59b6','#e67e22','#1abc9c','#e74c3c','#ffffff'];
+  const N = 220;
+  const pieces = Array.from({length: N}, (_, i) => ({
+    x:     Math.random() * canvas.width,
+    y:     Math.random() * canvas.height - canvas.height * 0.5,
+    w:     Math.random() * 14 + 4,
+    h:     Math.random() * 7  + 3,
+    color: colors[i % colors.length],
+    angle: Math.random() * Math.PI * 2,
+    spin:  (Math.random() - 0.5) * 0.18,
+    vx:    (Math.random() - 0.5) * 2.5,
+    vy:    Math.random() * 4 + 1.5,
+  }));
+
+  function frame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const p of pieces) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.angle);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = 0.88;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+      p.x += p.vx;
+      p.y += p.vy;
+      p.angle += p.spin;
+      if (p.y > canvas.height + 20) {
+        p.y = -20;
+        p.x = Math.random() * canvas.width;
+      }
+    }
+    animId = requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+// ─────────────────────────────────────────────
+// PERSISTENCE — cookie save / load / clear
+// ─────────────────────────────────────────────
+//
+//  Cookie name : pres_game
+//  Expiry      : 90 days
+//  Version key : COOKIE_VER  (bump to invalidate saved state on breaking changes)
+//  Max size    : ~1,500 bytes encoded — well within the 4,096-byte per-cookie limit
+//
+//  What is saved:
+//    v         – schema version (integer)
+//    slots     – 47-element array; each entry is null or a presId string
+//    shuffled  – ordered array of presId strings representing the left-panel random order
+//    sortOrder – 'shuffle' | 'first' | 'last'
+//
+//  Where saveState() is called:
+//    • onUp()          — after every successful drag-and-drop placement
+//    • remove handler  — after every ✕ removal
+//    • onSortChange()  — when the sort dropdown changes
+//
+//  Where clearState() is called:
+//    • resetGame()     — on Reset, Play Again, or any explicit restart
+
+const COOKIE_NAME = 'pres_game';
+const COOKIE_DAYS = 90;
+const COOKIE_VER  = 1;
+
+// ── Low-level cookie helpers ──────────────────
+
+function setCookie(name, value, days) {
+  const exp = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)};expires=${exp};path=/;SameSite=Lax`;
+}
+
+function getCookie(name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const m = document.cookie.match(new RegExp('(?:^|; )' + escaped + '=([^;]*)'));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+function deleteCookie(name) {
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`;
+}
+
+// ── Save ─────────────────────────────────────
+
+function saveState() {
+  const state = {
+    v:         COOKIE_VER,
+    slots:     slots,                    // 47-element array (null | presId)
+    shuffled:  shuffled.map(p => p.id), // store IDs only; objects rebuilt on restore
+    sortOrder: sortOrder
+  };
+  try {
+    setCookie(COOKIE_NAME, JSON.stringify(state), COOKIE_DAYS);
+  } catch (e) { /* silently ignore write failures (e.g. private-browsing restrictions) */ }
+}
+
+// ── Load — returns true on successful restore ─
+
+function loadState() {
+  try {
+    const raw = getCookie(COOKIE_NAME);
+    if (!raw) return false;
+
+    const state = JSON.parse(raw);
+
+    // Reject incompatible schema versions
+    if (state.v !== COOKIE_VER) return false;
+
+    // Validate slots: must be exactly 47 entries of null | known presId
+    const validIds = new Set(PRESIDENTS.map(p => p.id));
+    if (!Array.isArray(state.slots) || state.slots.length !== 47) return false;
+    const restoredSlots = state.slots.map(id =>
+      (id === null || id === undefined) ? null : (validIds.has(id) ? id : null)
+    );
+
+    // Validate / rebuild shuffled order (fall back to fresh shuffle on any anomaly)
+    let restoredShuffled;
+    if (Array.isArray(state.shuffled) && state.shuffled.length === PRESIDENTS.length) {
+      const mapped = state.shuffled
+        .map(id => PRESIDENTS.find(p => p.id === id))
+        .filter(Boolean);
+      restoredShuffled = mapped.length === PRESIDENTS.length
+        ? mapped
+        : [...PRESIDENTS].sort(() => Math.random() - 0.5);
+    } else {
+      restoredShuffled = [...PRESIDENTS].sort(() => Math.random() - 0.5);
+    }
+
+    // Validate sortOrder
+    const validOrders = new Set(['shuffle', 'first', 'last']);
+    const restoredSortOrder = validOrders.has(state.sortOrder) ? state.sortOrder : 'shuffle';
+
+    // Apply — only after all validation passes
+    slots     = restoredSlots;
+    shuffled  = restoredShuffled;
+    sortOrder = restoredSortOrder;
+    return true;
+
+  } catch (e) {
+    return false; // malformed JSON or any unexpected error → start fresh
+  }
+}
+
+// ── Clear (called on intentional restart) ────
+
+function clearState() {
+  deleteCookie(COOKIE_NAME);
+}
+
+// ─────────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────────
+
+if (!loadState()) {
+  // No saved state found (first visit, expired, or incompatible version) — start fresh
+  shuffled = [...PRESIDENTS].sort(() => Math.random() - 0.5);
+}
+
+// Sync the sort dropdown to whatever was restored (or the default 'shuffle')
+document.getElementById('sortSelect').value = sortOrder;
+
+renderPresidentsList();
+renderSlots();
+updateProgress();
+loadImages(); // async — re-renders cards with portrait images when batches complete
+</script>
+</body>
+</html>
